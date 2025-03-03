@@ -1,580 +1,653 @@
-let scene, camera, renderer, ship;
-let isGameStarted = false;
-let skybox;
-let gameMap;
+// Constants
+const SPACE_ALTITUDE = 2000;
+const SPACE_TRANSITION_RANGE = 2000;
+const WIND_CHANGE_INTERVAL = 500;
 
-// Configuration de base de Three.js
-function initThree() {
-    try {
-        console.log('Création de la scène...');
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000020); // Fond bleu très sombre
-        
-        console.log('Configuration de la caméra...');
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
-        
-        console.log('Initialisation du renderer...');
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+// Control state
+const CONTROLS = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+    brake: false,
+    mouseX: 0,
+    mouseY: 0,
+    joystickLeft: null,
+    joystickRight: null
+};
 
-        // Amélioration de l'éclairage
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
+// Initialize Three.js
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7FAFFF); // Minecraft-style sky blue
 
-        // Lumière principale (soleil)
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
-        sunLight.position.set(100, 100, 100);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 500;
-        scene.add(sunLight);
+// Add fog
+const fogColor = new THREE.Color(0x7FAFFF);
+scene.fog = new THREE.Fog(fogColor, 100, 500);
 
-        // Lumière d'accentuation bleue
-        const blueLight = new THREE.PointLight(0x3498db, 0.5, 100);
-        blueLight.position.set(-50, 50, -50);
-        scene.add(blueLight);
+const camera = new THREE.PerspectiveCamera(85, window.innerWidth / window.innerHeight, 0.1, 10000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.BasicShadowMap;
+document.body.appendChild(renderer.domElement);
 
-        // Lumière d'accentuation rouge
-        const redLight = new THREE.PointLight(0xe74c3c, 0.5, 100);
-        redLight.position.set(50, -50, -50);
-        scene.add(redLight);
-
-        console.log('Création du skybox...');
-        createSkybox();
-
-        console.log('Configuration des lumières...');
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(100, 100, 100);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
-        scene.add(directionalLight);
-
-        console.log('Création de la carte...');
-        gameMap = new GameMap(scene);
-        
-        console.log('Configuration de la caméra initiale...');
-        camera.position.set(0, 100, 200);
-        camera.lookAt(0, 0, 0);
-        
-        console.log('Three.js initialisé avec succès');
-    } catch (error) {
-        console.error('Erreur lors de l\'initialisation de Three.js:', error);
-        alert('Erreur lors du chargement du jeu. Veuillez rafraîchir la page.');
-    }
-}
-
-function createSkybox() {
-    try {
-        // Utiliser une couleur de fond simple en attendant les textures
-        scene.background = new THREE.Color(0x000020);
-        console.log('Skybox créé avec succès (mode simple)');
-    } catch (error) {
-        console.error('Erreur lors de la création du skybox:', error);
-    }
-}
-
-function createEnvironment() {
-    // Création de l'île principale
-    createIsland();
-    
-    // Création des planètes
-    createPlanets();
-    
-    // Création des bâtiments
-    createBuildings();
-    
-    // Création des pistes d'atterrissage
-    createRunways();
-    
-    // Création de l'océan
-    createOcean();
-    
-    // Création des effets atmosphériques
-    createAtmosphericEffects();
-}
-
-function createIsland() {
-    // Géométrie de l'île avec relief
-    const geometry = new THREE.PlaneGeometry(1000, 1000, 128, 128);
-    const material = new THREE.MeshPhongMaterial({
-        color: 0x3a9d23,
-        shininess: 10,
-        wireframe: false
-    });
-
-    // Création du relief
-    const vertices = geometry.attributes.position.array;
-    for (let i = 0; i < vertices.length; i += 3) {
-        const x = vertices[i];
-        const z = vertices[i + 2];
-        vertices[i + 1] = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 20;
-    }
-
-    const island = new THREE.Mesh(geometry, material);
-    island.rotation.x = -Math.PI / 2;
-    island.receiveShadow = true;
-    scene.add(island);
-
-    // Ajout de détails (rochers, végétation)
-    addTerrainDetails();
-}
-
-function addTerrainDetails() {
-    // Ajout de rochers
-    const rockGeometry = new THREE.DodecahedronGeometry(5);
-    const rockMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
-    
-    for (let i = 0; i < 50; i++) {
-        const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-        rock.position.set(
-            Math.random() * 800 - 400,
-            Math.random() * 5,
-            Math.random() * 800 - 400
-        );
-        rock.rotation.set(
-            Math.random() * Math.PI,
-            Math.random() * Math.PI,
-            Math.random() * Math.PI
-        );
-        rock.scale.set(
-            Math.random() * 0.5 + 0.5,
-            Math.random() * 0.5 + 0.5,
-            Math.random() * 0.5 + 0.5
-        );
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        scene.add(rock);
-    }
-
-    // Ajout d'arbres futuristes
-    const treeGeometry = new THREE.CylinderGeometry(0, 4, 20, 4);
-    const treeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff88 });
-    
-    for (let i = 0; i < 100; i++) {
-        const tree = new THREE.Mesh(treeGeometry, treeMaterial);
-        tree.position.set(
-            Math.random() * 800 - 400,
-            10,
-            Math.random() * 800 - 400
-        );
-        tree.castShadow = true;
-        scene.add(tree);
-    }
-}
-
-function createBuildings() {
-    const cityGeometry = new THREE.BoxGeometry(20, 100, 20);
-    const cityMaterial = new THREE.MeshPhongMaterial({
-        color: 0x3498db,
-        shininess: 100,
-        transparent: true,
-        opacity: 0.8
-    });
-
-    // Création d'une ville futuriste
-    for (let i = 0; i < 20; i++) {
-        const building = new THREE.Mesh(cityGeometry, cityMaterial);
-        building.position.set(
-            Math.random() * 400 - 200,
-            50,
-            Math.random() * 400 - 200
-        );
-        building.scale.y = Math.random() * 2 + 0.5;
-        building.castShadow = true;
-        building.receiveShadow = true;
-        scene.add(building);
-
-        // Ajout de lumières aux fenêtres
-        addBuildingLights(building);
-    }
-}
-
-function addBuildingLights(building) {
-    const light = new THREE.PointLight(0xffff00, 1, 20);
-    light.position.set(
-        building.position.x,
-        building.position.y + 50,
-        building.position.z
-    );
-    scene.add(light);
-}
-
-function createRunways() {
-    // Création des pistes d'atterrissage
-    const runwayGeometry = new THREE.PlaneGeometry(200, 30);
-    const runwayMaterial = new THREE.MeshPhongMaterial({
-        color: 0x333333,
-        shininess: 30
-    });
-
-    // Création de plusieurs pistes
-    const runwayPositions = [
-        { x: 0, z: 0, rotation: 0 },
-        { x: 200, z: 200, rotation: Math.PI / 4 },
-        { x: -200, z: -200, rotation: -Math.PI / 4 }
-    ];
-
-    runwayPositions.forEach(pos => {
-        const runway = new THREE.Mesh(runwayGeometry, runwayMaterial);
-        runway.rotation.x = -Math.PI / 2;
-        runway.rotation.z = pos.rotation;
-        runway.position.set(pos.x, 0.1, pos.z);
-        runway.receiveShadow = true;
-        scene.add(runway);
-
-        // Ajout des marquages
-        addRunwayMarkings(runway);
-    });
-}
-
-function addRunwayMarkings(runway) {
-    const markingGeometry = new THREE.PlaneGeometry(10, 2);
-    const markingMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-
-    for (let i = -90; i <= 90; i += 20) {
-        const marking = new THREE.Mesh(markingGeometry, markingMaterial);
-        marking.position.set(i, 0.2, 0);
-        marking.rotation.x = -Math.PI / 2;
-        runway.add(marking);
-    }
-}
-
-function createPlanets() {
-    const planetColors = [0xff4444, 0x44ff44, 0x4444ff, 0xffff44, 0xff44ff, 0x44ffff];
-    const planetTextures = [
-        'textures/planets/mars.jpg',
-        'textures/planets/venus.jpg',
-        'textures/planets/mercury.jpg'
-    ];
-
-    for (let i = 0; i < 10; i++) {
-        const radius = Math.random() * 100 + 50;
-        const distance = Math.random() * 8000 + 2000;
-        const angle = (i / 10) * Math.PI * 2;
-        
-        const planetGeometry = new THREE.SphereGeometry(radius, 32, 32);
-        const planetMaterial = new THREE.MeshPhongMaterial({ 
-            color: planetColors[i % planetColors.length],
-            shininess: 30
-        });
-        const planet = new THREE.Mesh(planetGeometry, planetMaterial);
-        
-        planet.position.x = Math.cos(angle) * distance;
-        planet.position.z = Math.sin(angle) * distance;
-        planet.position.y = Math.random() * 2000;
-        
-        // Ajout d'anneaux pour certaines planètes
-        if (Math.random() > 0.5) {
-            addPlanetRings(planet);
+// Game state
+const GAME_STATE = {
+    config: {
+        isLocalGame: window.location.protocol === 'file:',
+        spaceAltitude: SPACE_ALTITUDE,
+        spaceTransitionRange: SPACE_TRANSITION_RANGE,
+        hasStarted: false,
+        isMuted: false,
+        debug: false
+    },
+    player: {
+        ship: null,
+        health: 100,
+        score: 0,
+        isAlive: true,
+        position: new THREE.Vector3(0, 36, 90),
+        rotation: new THREE.Vector3()
+    },
+    flight: {
+        velocity: new THREE.Vector3(),
+        speed: 0,
+        minSpeed: 0.1,
+        maxSpeed: 2,
+        takeoffSpeed: 0.5,
+        turnRate: 0.02,
+        pitchRate: 0.02,
+        rollRate: 0.02
+    },
+    camera: {
+        isThirdPerson: true,
+        sensitivity: 0.002,
+        lastMouseMoveTime: 0,
+        offset: new THREE.Vector3(0, 2, 10),
+        cockpitOffset: new THREE.Vector3(0, 1.0, -0.6)
+    },
+    environment: {
+        ground: null,
+        runway: null,
+        hangars: [],
+        tower: null,
+        windsock: {
+            group: null,
+            segments: [],
+            wind: {
+                speed: 0.2,
+                direction: 0,
+                changeTimer: 0,
+                changeInterval: WIND_CHANGE_INTERVAL
+            }
         }
+    },
+    audio: {
+        context: null,
+        shoot: null,
+        explosion: null,
+        engine: {
+            oscillator: null,
+            gainNode: null
+        },
+        atc: null
+    },
+    multiplayer: {
+        localPlaneId: null,
+        otherPlayers: new Map()
+    },
+    metrics: {
+        fps: 0,
+        frameCount: 0,
+        lastTime: 0,
+        metricsVisible: false,
+        deltaTime: 1/60
+    }
+};
 
-        scene.add(planet);
+// Window resize handler
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.render(scene, camera);
+}
+window.addEventListener('resize', onWindowResize);
 
-        // Animation de rotation
-        const rotationSpeed = Math.random() * 0.002;
-        planet.userData = { rotationSpeed };
+// Utility functions
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Audio functions
+function createShootSound() {
+    const duration = 0.15;
+    const audioCtx = GAME_STATE.audio.context;
+    
+    const shootBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * duration, audioCtx.sampleRate);
+    const channelData = shootBuffer.getChannelData(0);
+    
+    if (isMobileDevice()) {
+        for (let i = 0; i < shootBuffer.length; i++) {
+            const t = i / audioCtx.sampleRate;
+            const baseFreq = 30;
+            const amplitude = Math.exp(-1 * t);
+            const noise = (Math.random() * 2 - 1) * Math.exp(-5 * t);
+            
+            channelData[i] = amplitude * (
+                Math.sin(2 * Math.PI * baseFreq * t) +
+                1.5 * Math.sin(4 * Math.PI * baseFreq * t) +
+                1.25 * Math.sin(8 * Math.PI * baseFreq * t) +
+                1.5 * noise
+            );
+        }
+    } else {
+        for (let i = 0; i < shootBuffer.length; i++) {
+            const t = i / audioCtx.sampleRate;
+            const baseFreq = 50;
+            const amplitude = Math.exp(-10 * t);
+            channelData[i] = amplitude * (
+                Math.sin(2 * Math.PI * baseFreq * t) +
+                0.7 * Math.sin(4 * Math.PI * baseFreq * t) +
+                0.5 * Math.sin(6 * Math.PI * baseFreq * t) +
+                0.3 * Math.sin(8 * Math.PI * baseFreq * t)
+            );
+        }
+    }
+    
+    GAME_STATE.audio.shoot = shootBuffer;
+}
+
+function playShootSound() {
+    if (GAME_STATE.config.isMuted) return;
+    
+    const audioCtx = GAME_STATE.audio.context;
+    const source = audioCtx.createBufferSource();
+    source.buffer = GAME_STATE.audio.shoot;
+    
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = isMobileDevice() ? 0.5 : 1.0;
+    
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1000;
+    
+    const compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -50;
+    compressor.knee.value = 40;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0;
+    compressor.release.value = 0.25;
+    
+    source.connect(gainNode);
+    gainNode.connect(filter);
+    filter.connect(compressor);
+    compressor.connect(audioCtx.destination);
+    
+    source.start();
+}
+
+function initAudioSystem() {
+    try {
+        GAME_STATE.audio.context = new (window.AudioContext || window.webkitAudioContext)();
+        GAME_STATE.audio.gainControl = GAME_STATE.audio.context.createGain();
+        GAME_STATE.audio.gainControl.connect(GAME_STATE.audio.context.destination);
+        console.log('Système audio initialisé avec succès');
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation du système audio:', error);
     }
 }
 
-function addPlanetRings(planet) {
-    const ringGeometry = new THREE.RingGeometry(
-        planet.geometry.parameters.radius * 1.5,
-        planet.geometry.parameters.radius * 2,
-        32
-    );
-    const ringMaterial = new THREE.MeshPhongMaterial({
-        color: 0xffffff,
-        side: THREE.DoubleSide,
+// Player creation
+function createPlayerPlane() {
+    const playerGroup = new THREE.Group();
+    
+    // Materials
+    const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+    const wingMaterial = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+    const trimMaterial = new THREE.MeshPhongMaterial({ color: 0x2244CC });
+    const windowMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x87CEEB,
         transparent: true,
         opacity: 0.5
     });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = Math.PI / 2;
-    planet.add(ring);
-}
+    const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
 
-function createOcean() {
-    const oceanGeometry = new THREE.PlaneGeometry(10000, 10000, 128, 128);
-    const oceanMaterial = new THREE.MeshPhongMaterial({
-        color: 0x006994,
-        transparent: true,
-        opacity: 0.8,
-        shininess: 100
-    });
-    
-    const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
-    ocean.rotation.x = -Math.PI / 2;
-    ocean.position.y = -10;
-    ocean.receiveShadow = true;
-    scene.add(ocean);
-}
-
-function createAtmosphericEffects() {
-    // Brouillard
-    scene.fog = new THREE.FogExp2(0x88ccee, 0.0003);
-}
-
-function createStarship() {
-    // Création d'une fusée moderne
-    const shipGeometry = new THREE.Group();
-
-    // Corps principal (forme de fusée)
-    const bodyGeometry = new THREE.CylinderGeometry(3, 5, 40, 16);
-    const bodyMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0xf0f0f0,
-        shininess: 100,
-        metalness: 0.8
-    });
+    // Main body (fuselage)
+    const bodyGeometry = new THREE.BoxGeometry(0.8, 0.8, 4);
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.rotation.x = Math.PI / 2;
-    shipGeometry.add(body);
+    playerGroup.add(body);
 
-    // Nez de la fusée
-    const noseGeometry = new THREE.ConeGeometry(3, 10, 16);
-    const noseMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0xdd0000,
-        shininess: 100
-    });
-    const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-    nose.position.set(0, 25, 0);
-    nose.rotation.x = Math.PI / 2;
-    shipGeometry.add(nose);
+    // Nose
+    const noseGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.8);
+    const nose = new THREE.Mesh(noseGeometry, bodyMaterial);
+    nose.position.z = -2.2;
+    nose.position.y = -0.1;
+    playerGroup.add(nose);
 
-    // Ailettes (4)
-    const finGeometry = new THREE.BoxGeometry(15, 1, 10);
-    const finMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0xdd0000,
-        shininess: 90
-    });
+    // Wings
+    const wingGeometry = new THREE.BoxGeometry(7, 0.1, 1.2);
+    const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+    wings.position.y = 0.3;
+    playerGroup.add(wings);
 
-    for (let i = 0; i < 4; i++) {
-        const fin = new THREE.Mesh(finGeometry, finMaterial);
-        fin.position.set(0, 0, -15);
-        fin.rotation.z = (Math.PI * 2 / 4) * i;
-        shipGeometry.add(fin);
-    }
+    // Tail wings
+    const tailWingGeometry = new THREE.BoxGeometry(2.2, 0.1, 0.8);
+    const tailWing = new THREE.Mesh(tailWingGeometry, wingMaterial);
+    tailWing.position.z = 1.8;
+    tailWing.position.y = 0.2;
+    playerGroup.add(tailWing);
 
-    // Moteurs (3)
-    const engineGeometry = new THREE.CylinderGeometry(2, 2.5, 5, 8);
-    const engineMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x333333,
-        shininess: 80
-    });
+    // Vertical stabilizer
+    const stabilizerGeometry = new THREE.BoxGeometry(0.1, 0.8, 1.2);
+    const stabilizer = new THREE.Mesh(stabilizerGeometry, wingMaterial);
+    stabilizer.position.z = 1.8;
+    stabilizer.position.y = 0.5;
+    playerGroup.add(stabilizer);
 
-    // Moteur central
-    const mainEngine = new THREE.Mesh(engineGeometry, engineMaterial);
-    mainEngine.position.set(0, 0, -20);
-    mainEngine.rotation.x = Math.PI / 2;
-    shipGeometry.add(mainEngine);
+    // Windows (cockpit)
+    const windowGeometry = new THREE.BoxGeometry(0.82, 0.82, 1.2);
+    const windows = new THREE.Mesh(windowGeometry, windowMaterial);
+    windows.position.z = -0.8;
+    windows.position.y = 0.1;
+    playerGroup.add(windows);
 
-    // Moteurs latéraux
-    const leftEngine = mainEngine.clone();
-    leftEngine.position.set(-4, 0, -18);
-    shipGeometry.add(leftEngine);
-
-    const rightEngine = mainEngine.clone();
-    rightEngine.position.set(4, 0, -18);
-    shipGeometry.add(rightEngine);
-
-    // Effets de propulsion (cônes lumineux)
-    const thrusterGeometry = new THREE.ConeGeometry(1.5, 8, 8);
-    const thrusterMaterial = new THREE.MeshPhongMaterial({
-        color: 0x00ffff,
-        transparent: true,
-        opacity: 0.6,
-        emissive: 0x00ffff,
-        emissiveIntensity: 0.5
-    });
-
-    // Propulseur central
-    const mainThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
-    mainThruster.position.set(0, 0, -24);
-    mainThruster.rotation.x = Math.PI / 2;
-    shipGeometry.add(mainThruster);
-
-    // Propulseurs latéraux
-    const leftThruster = mainThruster.clone();
-    leftThruster.position.set(-4, 0, -22);
-    shipGeometry.add(leftThruster);
-
-    const rightThruster = mainThruster.clone();
-    rightThruster.position.set(4, 0, -22);
-    shipGeometry.add(rightThruster);
-
-    // Fenêtres de la cabine
-    const windowGeometry = new THREE.CylinderGeometry(1, 1, 2, 16);
-    const windowMaterial = new THREE.MeshPhongMaterial({
-        color: 0x3498db,
-        transparent: true,
-        opacity: 0.7,
-        shininess: 100
-    });
-
-    for (let i = 0; i < 3; i++) {
-        const window = new THREE.Mesh(windowGeometry, windowMaterial);
-        window.position.set(0, 15 - (i * 5), 3);
-        window.rotation.z = Math.PI / 2;
-        shipGeometry.add(window);
-    }
-
-    ship = shipGeometry;
-    ship.castShadow = true;
-    scene.add(ship);
+    // Landing gear
+    const wheelGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8);
     
-    // Position initiale sur la piste de décollage
-    resetPosition();
+    // Main landing gear
+    const leftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    leftWheel.rotation.z = Math.PI / 2;
+    leftWheel.position.set(-1, -0.6, 0);
+    playerGroup.add(leftWheel);
     
-    // Attacher la caméra au vaisseau
-    ship.add(camera);
-    camera.position.set(0, 15, -50);
-    camera.lookAt(0, 0, 30);
+    const rightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rightWheel.rotation.z = Math.PI / 2;
+    rightWheel.position.set(1, -0.6, 0);
+    playerGroup.add(rightWheel);
+    
+    // Nose wheel
+    const noseWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    noseWheel.rotation.z = Math.PI / 2;
+    noseWheel.position.set(0, -0.6, -1.5);
+    playerGroup.add(noseWheel);
+
+    // Set initial position
+    playerGroup.position.copy(GAME_STATE.player.position);
+    
+    // Add to scene and store in GAME_STATE
+    scene.add(playerGroup);
+    GAME_STATE.player.ship = playerGroup;
+    
+    return playerGroup;
 }
 
-function animate() {
-    requestAnimationFrame(animate);
-    
-    if (isGameStarted) {
-        // Mise à jour des contrôles et de la physique
-        updateControls();
-        
-        // Animation des planètes
-        scene.traverse(object => {
-            if (object.userData && object.userData.rotationSpeed) {
-                object.rotation.y += object.userData.rotationSpeed;
-            }
+// Controls setup
+function initControls() {
+    // Keyboard controls
+    window.addEventListener('keydown', (event) => {
+        switch(event.code) {
+            case 'KeyW': case 'ArrowUp': CONTROLS.forward = true; break;
+            case 'KeyS': case 'ArrowDown': CONTROLS.backward = true; break;
+            case 'KeyA': case 'ArrowLeft': CONTROLS.left = true; break;
+            case 'KeyD': case 'ArrowRight': CONTROLS.right = true; break;
+            case 'Space': CONTROLS.boost = true; break;
+            case 'ShiftLeft': case 'ShiftRight': CONTROLS.brake = true; break;
+        }
+    });
+
+    window.addEventListener('keyup', (event) => {
+        switch(event.code) {
+            case 'KeyW': case 'ArrowUp': CONTROLS.forward = false; break;
+            case 'KeyS': case 'ArrowDown': CONTROLS.backward = false; break;
+            case 'KeyA': case 'ArrowLeft': CONTROLS.left = false; break;
+            case 'KeyD': case 'ArrowRight': CONTROLS.right = false; break;
+            case 'Space': CONTROLS.boost = false; break;
+            case 'ShiftLeft': case 'ShiftRight': CONTROLS.brake = false; break;
+        }
+    });
+
+    // Mouse controls
+    window.addEventListener('mousemove', (event) => {
+        if (document.pointerLockElement === renderer.domElement) {
+            CONTROLS.mouseX += event.movementX * GAME_STATE.camera.sensitivity;
+            CONTROLS.mouseY += event.movementY * GAME_STATE.camera.sensitivity;
+            GAME_STATE.camera.lastMouseMoveTime = Date.now();
+        }
+    });
+
+    // Mobile controls (joysticks)
+    if (isMobileDevice()) {
+        const leftJoystickOptions = {
+            zone: document.getElementById('leftJoystick'),
+            mode: 'static',
+            position: { left: '50px', bottom: '50px' },
+            size: 120,
+            color: 'white'
+        };
+
+        const rightJoystickOptions = {
+            zone: document.getElementById('rightJoystick'),
+            mode: 'static',
+            position: { right: '50px', bottom: '50px' },
+            size: 120,
+            color: 'white'
+        };
+
+        CONTROLS.joystickLeft = nipplejs.create(leftJoystickOptions);
+        CONTROLS.joystickRight = nipplejs.create(rightJoystickOptions);
+
+        CONTROLS.joystickLeft.on('move', (event, data) => {
+            const force = Math.min(data.force, 1);
+            CONTROLS.forward = data.angle.degree < 180;
+            CONTROLS.backward = data.angle.degree >= 180;
+            CONTROLS.left = data.angle.degree > 90 && data.angle.degree < 270;
+            CONTROLS.right = data.angle.degree < 90 || data.angle.degree > 270;
         });
 
-        // Mise à jour du réseau et des autres joueurs
-        updateGameLoop();
+        CONTROLS.joystickLeft.on('end', () => {
+            CONTROLS.forward = CONTROLS.backward = CONTROLS.left = CONTROLS.right = false;
+        });
 
-        // Mise à jour du HUD
-        updateHUD();
+        CONTROLS.joystickRight.on('move', (event, data) => {
+            CONTROLS.mouseX = (data.angle.degree < 180 ? 1 : -1) * data.force / 50;
+            CONTROLS.mouseY = (data.angle.degree > 90 && data.angle.degree < 270 ? 1 : -1) * data.force / 50;
+        });
 
-        // Envoi des mises à jour au serveur
-        if (socket) {
-            socket.emit('updatePosition', {
-                position: ship.position.clone(),
-                rotation: ship.rotation.clone(),
-                velocity: velocity.clone()
-            });
+        CONTROLS.joystickRight.on('end', () => {
+            CONTROLS.mouseX = CONTROLS.mouseY = 0;
+        });
+    }
+}
+
+// Update player movement
+function updatePlayerMovement(deltaTime) {
+    const player = GAME_STATE.player.ship;
+    if (!player) return;
+
+    // Update rotation
+    if (CONTROLS.left) player.rotation.y += GAME_STATE.flight.turnRate * deltaTime;
+    if (CONTROLS.right) player.rotation.y -= GAME_STATE.flight.turnRate * deltaTime;
+    if (CONTROLS.forward) player.rotation.x -= GAME_STATE.flight.pitchRate * deltaTime;
+    if (CONTROLS.backward) player.rotation.x += GAME_STATE.flight.pitchRate * deltaTime;
+
+    // Update speed
+    if (CONTROLS.boost) {
+        GAME_STATE.flight.speed = Math.min(
+            GAME_STATE.flight.speed + 0.1 * deltaTime,
+            GAME_STATE.flight.maxSpeed
+        );
+    } else if (CONTROLS.brake) {
+        GAME_STATE.flight.speed = Math.max(
+            GAME_STATE.flight.speed - 0.2 * deltaTime,
+            GAME_STATE.flight.minSpeed
+        );
+    }
+
+    // Update position
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(player.quaternion);
+    direction.multiplyScalar(GAME_STATE.flight.speed * deltaTime * 60);
+    player.position.add(direction);
+
+    // Update camera
+    updateCamera();
+}
+
+// Update camera position
+function updateCamera() {
+    if (!GAME_STATE.player.ship) return;
+
+    const offset = GAME_STATE.camera.isThirdPerson ? 
+        GAME_STATE.camera.offset : 
+        GAME_STATE.camera.cockpitOffset;
+
+    const targetPosition = GAME_STATE.player.ship.position.clone();
+    targetPosition.add(offset);
+    camera.position.lerp(targetPosition, 0.1);
+    camera.lookAt(GAME_STATE.player.ship.position);
+}
+
+// Collision detection
+function checkCollisions() {
+    if (!GAME_STATE.player.ship || !GAME_STATE.player.isAlive) return;
+
+    const playerPosition = GAME_STATE.player.ship.position;
+    const playerBoundingBox = new THREE.Box3().setFromObject(GAME_STATE.player.ship);
+
+    // Ground collision
+    if (playerPosition.y < 35.5) {
+        if (GAME_STATE.flight.speed > GAME_STATE.flight.takeoffSpeed) {
+            handleCrash('Collision avec le sol !');
+            return;
+        } else {
+            // Safe landing on runway
+            if (Math.abs(playerPosition.x) < 5 && Math.abs(playerPosition.z) < 100) {
+                GAME_STATE.flight.speed = 0;
+                playerPosition.y = 35.5;
+                updateScore(10, 'Atterrissage réussi !');
+            } else {
+                handleCrash('Atterrissage hors piste !');
+                return;
+            }
+        }
+    }
+
+    // Structure collisions
+    GAME_STATE.environment.hangars.forEach(hangar => {
+        const hangarBoundingBox = new THREE.Box3().setFromObject(hangar);
+        if (playerBoundingBox.intersectsBox(hangarBoundingBox)) {
+            handleCrash('Collision avec un hangar !');
+            return;
+        }
+    });
+}
+
+// Handle crash
+function handleCrash(message) {
+    if (!GAME_STATE.player.isAlive) return;
+
+    GAME_STATE.player.isAlive = false;
+    GAME_STATE.player.health = 0;
+    createExplosionEffect(GAME_STATE.player.ship.position.clone());
+    updateScore(-50, message);
+    
+    GAME_STATE.player.ship.visible = false;
+    
+    setTimeout(() => {
+        showGameOver(message);
+    }, 2000);
+}
+
+// Create explosion effect
+function createExplosionEffect(position) {
+    const particleCount = 50;
+    const particles = new THREE.Group();
+    
+    for (let i = 0; i < particleCount; i++) {
+        const geometry = new THREE.SphereGeometry(0.1, 4, 4);
+        const material = new THREE.MeshPhongMaterial({
+            color: Math.random() > 0.5 ? 0xff4500 : 0xff8c00,
+            emissive: 0xff4500,
+            emissiveIntensity: 0.5
+        });
+        
+        const particle = new THREE.Mesh(geometry, material);
+        particle.position.copy(position);
+        particle.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 2,
+            Math.random() * 2,
+            (Math.random() - 0.5) * 2
+        );
+        
+        particles.add(particle);
+    }
+    
+    scene.add(particles);
+    
+    let elapsed = 0;
+    function animateExplosion() {
+        elapsed += GAME_STATE.metrics.deltaTime;
+        
+        particles.children.forEach(particle => {
+            particle.position.add(particle.velocity.clone().multiplyScalar(GAME_STATE.metrics.deltaTime));
+            particle.velocity.y -= GAME_STATE.metrics.deltaTime * 9.8;
+            particle.material.opacity = 1 - (elapsed / 2);
+            particle.material.transparent = true;
+            particle.scale.multiplyScalar(0.98);
+        });
+        
+        if (elapsed < 2) {
+            requestAnimationFrame(animateExplosion);
+        } else {
+            scene.remove(particles);
         }
     }
     
+    animateExplosion();
+}
+
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+
+    const currentTime = performance.now();
+    GAME_STATE.metrics.deltaTime = (currentTime - GAME_STATE.metrics.lastTime) / 1000;
+    GAME_STATE.metrics.lastTime = currentTime;
+
+    if (GAME_STATE.config.hasStarted && GAME_STATE.player.isAlive) {
+        updatePlayerMovement(GAME_STATE.metrics.deltaTime);
+        checkCollisions();
+    }
+
     renderer.render(scene, camera);
 }
 
-function updateHUD() {
-    // Mise à jour des informations du HUD
-    const speed = velocity.length() * 10;
-    document.getElementById('speed').textContent = Math.round(speed);
-    document.getElementById('altitude').textContent = Math.round(ship.position.y);
-    document.getElementById('playerCount').textContent = otherPlayers.size + 1;
-    
-    // Mise à jour de la mini-carte
-    updateMinimap();
-    
-    // Mise à jour du compteur de vitesse
-    updateSpeedometer(speed);
+// Score system
+function initScoreSystem() {
+    const scoreOverlay = document.getElementById('scoreOverlay');
+    scoreOverlay.innerHTML = 'Score: 0';
 }
 
-function updateSpeedometer(speed) {
-    const canvas = document.getElementById('speedometer').querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = canvas.width / 2 - 10;
+function updateScore(points, message = '') {
+    GAME_STATE.player.score += points;
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const scoreOverlay = document.getElementById('scoreOverlay');
+    scoreOverlay.innerHTML = `Score: ${GAME_STATE.player.score}`;
     
-    // Dessin du cercle de fond
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#30f2f2';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    // Dessin des graduations
-    for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2;
-        const startRadius = radius - 5;
-        const endRadius = radius;
-        
-        ctx.beginPath();
-        ctx.moveTo(
-            centerX + Math.cos(angle) * startRadius,
-            centerY + Math.sin(angle) * startRadius
-        );
-        ctx.lineTo(
-            centerX + Math.cos(angle) * endRadius,
-            centerY + Math.sin(angle) * endRadius
-        );
-        ctx.stroke();
+    if (message) {
+        showMessage(message, points > 0 ? '#4CAF50' : '#f44336');
     }
     
-    // Dessin de l'aiguille
-    const maxSpeed = 1000;
-    const angle = ((speed / maxSpeed) * Math.PI * 1.5) - Math.PI * 0.75;
-    
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.lineTo(
-        centerX + Math.cos(angle) * radius * 0.8,
-        centerY + Math.sin(angle) * radius * 0.8
-    );
-    ctx.strokeStyle = '#ff0000';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    
-    // Affichage numérique
-    ctx.fillStyle = '#30f2f2';
-    ctx.font = '14px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${Math.round(speed)} km/h`, centerX, centerY + 20);
+    // Score animation
+    scoreOverlay.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+        scoreOverlay.style.transform = 'scale(1)';
+    }, 200);
 }
 
-// Démarrage automatique du jeu au chargement
-window.addEventListener('load', () => {
-    console.log('Démarrage automatique du jeu...');
-    isGameStarted = true;
+function showMessage(message, color = '#ffffff') {
+    const messageElement = document.createElement('div');
+    messageElement.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: ${color};
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        pointer-events: none;
+        transition: opacity 0.5s;
+        z-index: 1000;
+    `;
+    messageElement.textContent = message;
+    document.body.appendChild(messageElement);
     
-    console.log('Initialisation de Three.js...');
-    initThree();
-    console.log('Création du vaisseau...');
-    createStarship();
-    console.log('Initialisation des contrôles...');
+    setTimeout(() => {
+        messageElement.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(messageElement);
+        }, 500);
+    }, 2000);
+}
+
+function showGameOver(message) {
+    const gameOverElement = document.createElement('div');
+    gameOverElement.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 10px;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+    `;
+    
+    gameOverElement.innerHTML = `
+        <h2>Game Over</h2>
+        <p>${message}</p>
+        <p>Score final : ${GAME_STATE.player.score}</p>
+        <button onclick="location.reload()" style="
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        ">Rejouer</button>
+    `;
+    
+    document.body.appendChild(gameOverElement);
+}
+
+// Initialize game
+function initGame() {
+    createPlayerPlane();
     initControls();
-    console.log('Initialisation du réseau...');
-    initNetwork('Player-' + Math.floor(Math.random() * 1000));
-    
-    console.log('Démarrage de l\'animation...');
+    initAudioSystem();
+    initScoreSystem();
     animate();
-    console.log('Démarrage de la musique...');
-    startBackgroundMusic();
+}
+
+// Start game on button click
+document.getElementById('startButton').addEventListener('click', () => {
+    GAME_STATE.config.hasStarted = true;
+    document.getElementById('startScreen').style.display = 'none';
+    initGame();
 });
 
-function resetPosition() {
-    if (ship) {
-        ship.position.set(0, 20, 0);
-        ship.rotation.set(0, 0, 0);
-        velocity.set(0, 0, 0);
-        acceleration.set(0, 0, 0);
-        rotationVelocity.set(0, 0, 0);
-    }
-}
-
-// Gestion du redimensionnement de la fenêtre
-window.addEventListener('resize', () => {
-    if (camera && renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-}); 
+// Export functions and variables
+export {
+    scene,
+    camera,
+    renderer,
+    GAME_STATE,
+    CONTROLS,
+    isMobileDevice,
+    createShootSound,
+    playShootSound,
+    initAudioSystem,
+    createPlayerPlane,
+    initControls,
+    updatePlayerMovement,
+    updateCamera,
+    animate,
+    initGame,
+    checkCollisions,
+    handleCrash,
+    createExplosionEffect,
+    updateScore,
+    showMessage,
+    showGameOver
+};

@@ -2,164 +2,118 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Starship Battle</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Pieter.com Flight Simulator 2025</title>
+    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
+    
     <style>
         body { 
             margin: 0; 
-            overflow: hidden;
-            font-family: 'Arial', sans-serif;
+            overflow: hidden; 
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
         canvas { 
-            width: 100%; 
-            height: 100%; 
+            display: block;
+            touch-action: none;
         }
-        #minimap {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 200px;
-            height: 200px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #30f2f2;
-            border-radius: 50%;
-        }
-        #hud {
-            position: absolute;
+        #metrics {
+            cursor: pointer;
+            position: fixed;
             top: 20px;
             left: 20px;
-            color: #30f2f2;
-            font-size: 1.2em;
-            text-shadow: 0 0 5px #30f2f2;
+            color: white;
+            font-family: monospace;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        #speedometer {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #30f2f2;
-            border-radius: 50%;
+        #startScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
         }
-        #controls {
-            position: absolute;
+        #startButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            cursor: pointer;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        #leftJoystick, #rightJoystick {
+            position: fixed;
+            bottom: 50px;
+            width: 120px;
+            height: 120px;
+            z-index: 1000;
+            opacity: 0.7;
+            display: none;
+        }
+        #leftJoystick {
+            left: 50px;
+        }
+        #rightJoystick {
+            right: 50px;
+        }
+        #scoreOverlay {
+            position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 10px;
-            color: #30f2f2;
-        }
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid #30f2f2;
-            border-radius: 50%;
-        }
-        #crosshair::before, #crosshair::after {
-            content: '';
-            position: absolute;
-            background: #30f2f2;
-        }
-        #crosshair::before {
-            width: 2px;
-            height: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        #crosshair::after {
-            width: 10px;
-            height: 2px;
-            top: 50%;
-            transform: translateY(-50%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: transform 0.2s;
         }
         @media (max-width: 768px) {
-            #controls {
-                display: none !important;
+            #leftJoystick, #rightJoystick {
+                display: block;
             }
-            #minimap {
-                width: 120px;
-                height: 120px;
-            }
-            #speedometer {
-                width: 100px;
-                height: 100px;
+            #metrics {
+                font-size: 12px;
+                max-width: 150px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="hud">
-        <div>Vitesse: <span id="speed">0</span> km/s</div>
-        <div>Altitude: <span id="altitude">0</span> m</div>
-        <div>Joueurs connectés: <span id="playerCount">1</span></div>
+    <div id="metrics"></div>
+    <div id="startScreen">
+        <div style="text-align: center;">
+            <h1 style="font-size: 36px; margin-bottom: 20px;padding:14px;">
+                PIETER.COM<br/>FLIGHT SIMULATOR
+            </h1>
+            <button id="startButton">Start</button>
+            <p style="margin-top: 20px; font-size: 18px;">Press any key to start</p>
+        </div>
     </div>
+    <div id="leftJoystick"></div>
+    <div id="rightJoystick"></div>
+    <div id="scoreOverlay"></div>
 
-    <div id="minimap">
-        <canvas width="200" height="200"></canvas>
-    </div>
-    <div id="speedometer">
-        <canvas width="150" height="150"></canvas>
-    </div>
-    <div id="crosshair"></div>
-
-    <div id="controls">
-        <h3>Contrôles</h3>
-        <p>ZQSD / Flèches : Rotation</p>
-        <p>ESPACE : Propulsion</p>
-        <p>Clic gauche : Tir</p>
-        <p>R : Réinitialiser position</p>
-    </div>
-
-    <!-- Sons -->
-    <audio id="thrustSound" preload="auto" loop>
-        <source src="sounds/thrust.mp3" type="audio/mp3">
-    </audio>
-    <audio id="missileSound" preload="auto">
-        <source src="sounds/missile.mp3" type="audio/mp3">
-    </audio>
-    <audio id="explosionSound" preload="auto">
-        <source src="sounds/explosion.mp3" type="audio/mp3">
-    </audio>
-    <audio id="backgroundMusic" preload="auto" loop>
-        <source src="sounds/background.mp3" type="audio/mp3">
-    </audio>
-
-    <!-- Sons supplémentaires -->
-    <audio id="warpSound" preload="auto">
-        <source src="sounds/warp.mp3" type="audio/mp3">
-    </audio>
-    <audio id="alertSound" preload="auto">
-        <source src="sounds/alert.mp3" type="audio/mp3">
-    </audio>
-    <audio id="hitSound" preload="auto">
-        <source src="sounds/hit.mp3" type="audio/mp3">
-    </audio>
-    <audio id="powerupSound" preload="auto">
-        <source src="sounds/powerup.mp3" type="audio/mp3">
-    </audio>
-    <audio id="shieldSound" preload="auto">
-        <source src="sounds/shield.mp3" type="audio/mp3">
-    </audio>
-    <audio id="engineIdleSound" preload="auto" loop>
-        <source src="sounds/engine-idle.mp3" type="audio/mp3">
-    </audio>
-    <audio id="engineBoostSound" preload="auto">
-        <source src="sounds/engine-boost.mp3" type="audio/mp3">
-    </audio>
-
-    <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="js/sounds.js"></script>
-    <script src="js/map.js"></script>
-    <script src="js/controls.js"></script>
-    <script src="js/network.js"></script>
-    <script src="js/game.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+    <script type="module" src="js/game.js"></script>
 </body>
 </html> 

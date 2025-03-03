@@ -1,29 +1,29 @@
-# Starship Battle
+# Flight Simulator
 
-Un jeu multijoueur de combat spatial en 3D utilisant Three.js et Socket.io.
+Un simulateur de vol en 3D utilisant Three.js avec une physique réaliste.
 
 ## Fonctionnalités
 
-- Contrôle réaliste d'un vaisseau spatial en 3D
-- Mode multijoueur en temps réel
-- Effets visuels et sonores immersifs
-- Mini-carte et compteur de vitesse
-- Environnement spatial avec planètes et stations spatiales
-- Combat spatial avec missiles
+- Contrôle réaliste d'un avion en 3D
+- Système de collision avec l'environnement
+- Système de score avec atterrissages
+- Effets visuels (explosions) et sonores
+- Support pour PC et appareils mobiles (joysticks tactiles)
+- Environnement avec piste d'atterrissage, hangars et tour de contrôle
 
 ## Technologies utilisées
 
 - Three.js pour les graphismes 3D
-- Socket.io pour le multijoueur en temps réel
-- Node.js et Express pour le serveur
+- Web Audio API pour les effets sonores
 - HTML5 et JavaScript pour le client
+- Node.js et Express pour le serveur
 
 ## Installation
 
 1. Cloner le dépôt :
 ```bash
-git clone https://github.com/votre-username/starship-battle.git
-cd starship-battle
+git clone https://github.com/votre-username/flight-simulator.git
+cd flight-simulator
 ```
 
 2. Installer les dépendances :
@@ -36,19 +36,27 @@ npm install
 npm start
 ```
 
-4. Ouvrir le jeu dans votre navigateur :
+4. Ouvrir le simulateur dans votre navigateur :
 ```
 http://localhost:3000
 ```
 
 ## Contrôles
 
-- ZQSD / Flèches : Rotation du vaisseau
-- ESPACE : Propulsion
-- Clic gauche : Tir de missiles
-- R : Réinitialiser la position
-- Shift : Mode précision
-- Molette : Zoom
+### PC
+- W/S ou Flèches Haut/Bas : Tangage (pitch)
+- A/D ou Flèches Gauche/Droite : Roulis (roll)
+- ESPACE : Accélération
+- SHIFT : Freinage
+
+### Mobile
+- Joystick gauche : Contrôle du tangage et du roulis
+- Joystick droit : Contrôle de la vue
+
+## Système de score
+
+- +10 points : Atterrissage réussi sur la piste
+- -50 points : Crash
 
 ## Licence
 
