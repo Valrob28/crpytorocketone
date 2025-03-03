@@ -22,8 +22,8 @@ Un simulateur de vol en 3D utilisant Three.js avec une physique réaliste.
 
 1. Cloner le dépôt :
 ```bash
-git clone https://github.com/votre-username/flight-simulator.git
-cd flight-simulator
+git clone https://github.com/Valrob28/crpytorocketone.git
+cd crpytorocketone
 ```
 
 2. Installer les dépendances :
