@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starship Battle</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas { 
+            width: 100%; 
+            height: 100%; 
+        }
+        #loginScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            border: 2px solid #30f2f2;
+            box-shadow: 0 0 20px #30f2f2;
+        }
+        #loginScreen h2 {
+            color: #30f2f2;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px #30f2f2;
+        }
+        #pseudoInput {
+            padding: 10px;
+            font-size: 1.2em;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #30f2f2;
+            color: white;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            width: 250px;
+        }
+        #startButton {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: #30f2f2;
+            border: none;
+            color: black;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #startButton:hover {
+            background: #fff;
+            box-shadow: 0 0 20px #30f2f2;
+        }
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #30f2f2;
+            border-radius: 50%;
+            display: none;
+        }
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #30f2f2;
+            font-size: 1.2em;
+            text-shadow: 0 0 5px #30f2f2;
+            display: none;
+        }
+        #speedometer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #30f2f2;
+            border-radius: 50%;
+            display: none;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: #30f2f2;
+            display: none;
+        }
+        .hidden { 
+            display: none !important; 
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid #30f2f2;
+            border-radius: 50%;
+            display: none;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #30f2f2;
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #crosshair::after {
+            width: 10px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        @media (max-width: 768px) {
+            #controls {
+                display: none !important;
+            }
+            #minimap {
+                width: 120px;
+                height: 120px;
+            }
+            #speedometer {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen">
+        <h2>Starship Battle</h2>
+        <input type="text" id="pseudoInput" placeholder="Entrez votre pseudo" maxlength="20" />
+        <button id="startButton" onclick="startGame()">Démarrer</button>
+    </div>
+
+    <div id="hud" class="hidden">
+        <div>Vitesse: <span id="speed">0</span> km/s</div>
+        <div>Altitude: <span id="altitude">0</span> m</div>
+        <div>Joueurs connectés: <span id="playerCount">0</span></div>
+    </div>
+
+    <div id="minimap" class="hidden">
+        <canvas width="200" height="200"></canvas>
+    </div>
+    <div id="speedometer" class="hidden">
+        <canvas width="150" height="150"></canvas>
+    </div>
+    <div id="crosshair" class="hidden"></div>
+
+    <div id="controls" class="hidden">
+        <h3>Contrôles</h3>
+        <p>ZQSD / Flèches : Rotation</p>
+        <p>ESPACE : Propulsion</p>
+        <p>Clic gauche : Tir</p>
+        <p>R : Réinitialiser position</p>
+    </div>
+
+    <!-- Sons -->
+    <audio id="thrustSound" preload="auto" loop>
+        <source src="sounds/thrust.mp3" type="audio/mp3">
+    </audio>
+    <audio id="missileSound" preload="auto">
+        <source src="sounds/missile.mp3" type="audio/mp3">
+    </audio>
+    <audio id="explosionSound" preload="auto">
+        <source src="sounds/explosion.mp3" type="audio/mp3">
+    </audio>
+    <audio id="backgroundMusic" preload="auto" loop>
+        <source src="sounds/background.mp3" type="audio/mp3">
+    </audio>
+
+    <!-- Sons supplémentaires -->
+    <audio id="warpSound" preload="auto">
+        <source src="sounds/warp.mp3" type="audio/mp3">
+    </audio>
+    <audio id="alertSound" preload="auto">
+        <source src="sounds/alert.mp3" type="audio/mp3">
+    </audio>
+    <audio id="hitSound" preload="auto">
+        <source src="sounds/hit.mp3" type="audio/mp3">
+    </audio>
+    <audio id="powerupSound" preload="auto">
+        <source src="sounds/powerup.mp3" type="audio/mp3">
+    </audio>
+    <audio id="shieldSound" preload="auto">
+        <source src="sounds/shield.mp3" type="audio/mp3">
+    </audio>
+    <audio id="engineIdleSound" preload="auto" loop>
+        <source src="sounds/engine-idle.mp3" type="audio/mp3">
+    </audio>
+    <audio id="engineBoostSound" preload="auto">
+        <source src="sounds/engine-boost.mp3" type="audio/mp3">
+    </audio>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.161.0/three.min.js"></script>
+    <script src="js/joystick.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/network.js"></script>
+    <script src="js/sounds.js"></script>
+</body>
+</html> 
