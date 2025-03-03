@@ -611,21 +611,154 @@ function showGameOver(message) {
     document.body.appendChild(gameOverElement);
 }
 
-// Initialize game
-function initGame() {
-    createPlayerPlane();
-    initControls();
-    initAudioSystem();
-    initScoreSystem();
-    animate();
+// Create environment
+function createEnvironment() {
+    console.log('Création de l\'environnement...');
+    
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+    const groundMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x3a9d23,  // Vert pour l'herbe
+        side: THREE.DoubleSide 
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = Math.PI / 2;
+    ground.position.y = 35;
+    scene.add(ground);
+    GAME_STATE.environment.ground = ground;
+
+    // Runway
+    const runwayGeometry = new THREE.PlaneGeometry(10, 200);
+    const runwayMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x333333,  // Gris foncé pour l'asphalte
+        side: THREE.DoubleSide 
+    });
+    const runway = new THREE.Mesh(runwayGeometry, runwayMaterial);
+    runway.rotation.x = Math.PI / 2;
+    runway.position.y = 35.1;  // Légèrement au-dessus du sol
+    scene.add(runway);
+    GAME_STATE.environment.runway = runway;
+
+    // Runway markings
+    const createRunwayMarking = (position) => {
+        const markingGeometry = new THREE.PlaneGeometry(0.5, 4);
+        const markingMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xFFFFFF,
+            side: THREE.DoubleSide 
+        });
+        const marking = new THREE.Mesh(markingGeometry, markingMaterial);
+        marking.rotation.x = Math.PI / 2;
+        marking.position.copy(position);
+        marking.position.y = 35.15;  // Légèrement au-dessus de la piste
+        scene.add(marking);
+    };
+
+    // Add runway markings
+    for (let z = -90; z <= 90; z += 10) {
+        createRunwayMarking(new THREE.Vector3(0, 0, z));
+    }
+
+    // Hangars
+    const hangarGeometry = new THREE.BoxGeometry(15, 10, 20);
+    const hangarMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+    
+    // Hangar 1 (gauche)
+    const hangar1 = new THREE.Mesh(hangarGeometry, hangarMaterial);
+    hangar1.position.set(-20, 40, -30);
+    scene.add(hangar1);
+    GAME_STATE.environment.hangars.push(hangar1);
+
+    // Hangar 2 (droite)
+    const hangar2 = new THREE.Mesh(hangarGeometry, hangarMaterial);
+    hangar2.position.set(20, 40, -30);
+    scene.add(hangar2);
+    GAME_STATE.environment.hangars.push(hangar2);
+
+    // Control tower
+    const towerBaseGeometry = new THREE.BoxGeometry(8, 20, 8);
+    const towerTopGeometry = new THREE.BoxGeometry(10, 5, 10);
+    const towerMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const towerGlassMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x88ccff,
+        transparent: true,
+        opacity: 0.6
+    });
+
+    const towerBase = new THREE.Mesh(towerBaseGeometry, towerMaterial);
+    const towerTop = new THREE.Mesh(towerTopGeometry, towerGlassMaterial);
+    
+    towerBase.position.set(-30, 45, 0);
+    towerTop.position.set(-30, 57.5, 0);
+    
+    scene.add(towerBase);
+    scene.add(towerTop);
+    
+    GAME_STATE.environment.tower = new THREE.Group();
+    GAME_STATE.environment.tower.add(towerBase);
+    GAME_STATE.environment.tower.add(towerTop);
 }
 
-// Start game on button click
-document.getElementById('startButton').addEventListener('click', () => {
+// Initialize game
+function initGame() {
+    console.log('Initialisation du jeu...');
+    
+    // Ensure scene is visible
+    scene.background = new THREE.Color(0x7FAFFF);
+    scene.fog = new THREE.Fog(0x7FAFFF, 100, 500);
+    
+    // Add ambient light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    
+    // Add directional light (sun)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(100, 100, 100);
+    scene.add(directionalLight);
+    
+    // Create environment first
+    console.log('Création de l\'environnement...');
+    createEnvironment();
+    
+    console.log('Création de l\'avion...');
+    createPlayerPlane();
+    
+    // Position initiale de l'avion sur la piste
+    GAME_STATE.player.ship.position.set(0, 35.5, 80);  // Sur la piste, prêt à décoller
+    
+    console.log('Initialisation des contrôles...');
+    initControls();
+    
+    console.log('Initialisation du système audio...');
+    initAudioSystem();
+    
+    console.log('Initialisation du système de score...');
+    initScoreSystem();
+    
+    // Set initial camera position behind the plane
+    camera.position.set(0, 38, 90);
+    camera.lookAt(GAME_STATE.player.ship.position);
+    
+    console.log('Démarrage de l\'animation...');
+    animate();
+    
+    // Force first render
+    renderer.render(scene, camera);
+}
+
+// Start game on button click or Enter key
+document.getElementById('startButton').addEventListener('click', startGame);
+document.addEventListener('keydown', (event) => {
+    if (event.code === 'Enter' && !GAME_STATE.config.hasStarted) {
+        startGame();
+    }
+});
+
+function startGame() {
+    console.log('Démarrage du jeu...');
     GAME_STATE.config.hasStarted = true;
     document.getElementById('startScreen').style.display = 'none';
     initGame();
-});
+}
 
 // Export functions and variables
 export {
