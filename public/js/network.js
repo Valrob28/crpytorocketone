@@ -1,56 +1,60 @@
 let socket;
-const otherPlayers = new Map();
+let otherPlayers = {};
+let playerName;
 let lastUpdateTime = Date.now();
 const UPDATE_INTERVAL = 16; // ~60fps
 
-function initNetwork(pseudo) {
-    // Initialisation de Socket.IO
-    socket = io();
+function initNetwork(username) {
+    try {
+        console.log('Connexion au serveur socket.io...');
+        socket = io();
+        playerName = username;
 
-    // Gestion des événements de connexion
-    socket.on('connect', () => {
-        console.log('Connecté au serveur');
-        // Envoi des informations du joueur
-        socket.emit('playerJoin', { 
-            pseudo,
-            position: { x: 0, y: 100, z: 0 },
-            rotation: { x: 0, y: 0, z: 0 }
+        socket.on('connect', () => {
+            console.log('Connecté au serveur!');
+            socket.emit('new player', {
+                name: username,
+                position: { x: 0, y: 0, z: 0 },
+                rotation: { x: 0, y: 0, z: 0 }
+            });
         });
-    });
 
-    // Réception de la liste des joueurs
-    socket.on('players', (players) => {
-        updatePlayers(players);
-    });
+        socket.on('player list', (players) => {
+            console.log('Liste des joueurs reçue:', players);
+            Object.keys(players).forEach(id => {
+                if (id !== socket.id && !otherPlayers[id]) {
+                    createOtherPlayer(id, players[id]);
+                }
+            });
+        });
 
-    // Réception des mises à jour de position
-    socket.on('playerMoved', (data) => {
-        if (data.id !== socket.id) {
-            updatePlayerPosition(data);
-        }
-    });
+        socket.on('playerMoved', (data) => {
+            if (data.id !== socket.id) {
+                updatePlayerPosition(data);
+            }
+        });
 
-    // Réception des tirs de missiles
-    socket.on('missilesFired', (data) => {
-        if (data.playerId !== socket.id) {
-            createMissile(data.position, data.direction);
-        }
-    });
+        socket.on('missilesFired', (data) => {
+            if (data.playerId !== socket.id) {
+                createMissile(data.position, data.direction);
+            }
+        });
 
-    // Gestion des collisions
-    socket.on('playerHit', (data) => {
-        if (data.targetId === socket.id) {
-            handleHit();
-        }
-    });
+        socket.on('playerHit', (data) => {
+            if (data.targetId === socket.id) {
+                handleHit();
+            }
+        });
 
-    // Gestion de la déconnexion des autres joueurs
-    socket.on('playerDisconnected', (playerId) => {
-        removePlayer(playerId);
-    });
+        socket.on('playerDisconnected', (playerId) => {
+            removePlayer(playerId);
+        });
 
-    // Démarrage de la boucle de mise à jour
-    setInterval(sendUpdate, UPDATE_INTERVAL);
+        setInterval(sendUpdate, UPDATE_INTERVAL);
+        console.log('Initialisation du réseau terminée');
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation réseau:', error);
+    }
 }
 
 function updatePlayers(players) {

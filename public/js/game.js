@@ -5,50 +5,80 @@ let gameMap;
 
 // Configuration de base de Three.js
 function initThree() {
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+    try {
+        console.log('Création de la scène...');
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000020); // Fond bleu très sombre
+        
+        console.log('Configuration de la caméra...');
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
+        
+        console.log('Initialisation du renderer...');
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
 
-    // Création du skybox
-    createSkybox();
+        // Amélioration de l'éclairage
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
 
-    // Lumière ambiante
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    scene.add(ambientLight);
+        // Lumière principale (soleil)
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+        sunLight.position.set(100, 100, 100);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 500;
+        scene.add(sunLight);
 
-    // Lumière directionnelle (soleil)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(100, 100, 100);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 500;
-    scene.add(directionalLight);
+        // Lumière d'accentuation bleue
+        const blueLight = new THREE.PointLight(0x3498db, 0.5, 100);
+        blueLight.position.set(-50, 50, -50);
+        scene.add(blueLight);
 
-    // Création de la carte
-    gameMap = new GameMap(scene);
-    
-    // Position initiale de la caméra
-    camera.position.set(0, 100, 200);
-    camera.lookAt(0, 0, 0);
+        // Lumière d'accentuation rouge
+        const redLight = new THREE.PointLight(0xe74c3c, 0.5, 100);
+        redLight.position.set(50, -50, -50);
+        scene.add(redLight);
+
+        console.log('Création du skybox...');
+        createSkybox();
+
+        console.log('Configuration des lumières...');
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(100, 100, 100);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 500;
+        scene.add(directionalLight);
+
+        console.log('Création de la carte...');
+        gameMap = new GameMap(scene);
+        
+        console.log('Configuration de la caméra initiale...');
+        camera.position.set(0, 100, 200);
+        camera.lookAt(0, 0, 0);
+        
+        console.log('Three.js initialisé avec succès');
+    } catch (error) {
+        console.error('Erreur lors de l\'initialisation de Three.js:', error);
+        alert('Erreur lors du chargement du jeu. Veuillez rafraîchir la page.');
+    }
 }
 
 function createSkybox() {
-    const loader = new THREE.CubeTextureLoader();
-    const texture = loader.load([
-        'textures/skybox/px.jpg', // droite
-        'textures/skybox/nx.jpg', // gauche
-        'textures/skybox/py.jpg', // haut
-        'textures/skybox/ny.jpg', // bas
-        'textures/skybox/pz.jpg', // devant
-        'textures/skybox/nz.jpg'  // derrière
-    ]);
-    scene.background = texture;
+    try {
+        // Utiliser une couleur de fond simple en attendant les textures
+        scene.background = new THREE.Color(0x000020);
+        console.log('Skybox créé avec succès (mode simple)');
+    } catch (error) {
+        console.error('Erreur lors de la création du skybox:', error);
+    }
 }
 
 function createEnvironment() {
@@ -293,51 +323,107 @@ function createAtmosphericEffects() {
 }
 
 function createStarship() {
-    // Création d'un vaisseau spatial plus détaillé
+    // Création d'une fusée moderne
     const shipGeometry = new THREE.Group();
 
-    // Corps principal
-    const bodyGeometry = new THREE.ConeGeometry(5, 20, 8);
+    // Corps principal (forme de fusée)
+    const bodyGeometry = new THREE.CylinderGeometry(3, 5, 40, 16);
     const bodyMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x999999,
-        shininess: 100
+        color: 0xf0f0f0,
+        shininess: 100,
+        metalness: 0.8
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.rotation.x = Math.PI / 2;
     shipGeometry.add(body);
 
-    // Ailes
-    const wingGeometry = new THREE.BoxGeometry(15, 2, 5);
-    const wingMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
-    const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    leftWing.position.set(-7.5, 0, 5);
-    const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
-    rightWing.position.set(7.5, 0, 5);
-    shipGeometry.add(leftWing);
-    shipGeometry.add(rightWing);
+    // Nez de la fusée
+    const noseGeometry = new THREE.ConeGeometry(3, 10, 16);
+    const noseMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xdd0000,
+        shininess: 100
+    });
+    const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+    nose.position.set(0, 25, 0);
+    nose.rotation.x = Math.PI / 2;
+    shipGeometry.add(nose);
 
-    // Réacteurs
-    const engineGeometry = new THREE.CylinderGeometry(1, 1, 3, 8);
-    const engineMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-    const leftEngine = new THREE.Mesh(engineGeometry, engineMaterial);
-    leftEngine.position.set(-3, 0, 8);
-    const rightEngine = new THREE.Mesh(engineGeometry, engineMaterial);
-    rightEngine.position.set(3, 0, 8);
+    // Ailettes (4)
+    const finGeometry = new THREE.BoxGeometry(15, 1, 10);
+    const finMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xdd0000,
+        shininess: 90
+    });
+
+    for (let i = 0; i < 4; i++) {
+        const fin = new THREE.Mesh(finGeometry, finMaterial);
+        fin.position.set(0, 0, -15);
+        fin.rotation.z = (Math.PI * 2 / 4) * i;
+        shipGeometry.add(fin);
+    }
+
+    // Moteurs (3)
+    const engineGeometry = new THREE.CylinderGeometry(2, 2.5, 5, 8);
+    const engineMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x333333,
+        shininess: 80
+    });
+
+    // Moteur central
+    const mainEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+    mainEngine.position.set(0, 0, -20);
+    mainEngine.rotation.x = Math.PI / 2;
+    shipGeometry.add(mainEngine);
+
+    // Moteurs latéraux
+    const leftEngine = mainEngine.clone();
+    leftEngine.position.set(-4, 0, -18);
     shipGeometry.add(leftEngine);
+
+    const rightEngine = mainEngine.clone();
+    rightEngine.position.set(4, 0, -18);
     shipGeometry.add(rightEngine);
 
-    // Cockpit
-    const cockpitGeometry = new THREE.SphereGeometry(3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-    const cockpitMaterial = new THREE.MeshPhongMaterial({
+    // Effets de propulsion (cônes lumineux)
+    const thrusterGeometry = new THREE.ConeGeometry(1.5, 8, 8);
+    const thrusterMaterial = new THREE.MeshPhongMaterial({
+        color: 0x00ffff,
+        transparent: true,
+        opacity: 0.6,
+        emissive: 0x00ffff,
+        emissiveIntensity: 0.5
+    });
+
+    // Propulseur central
+    const mainThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
+    mainThruster.position.set(0, 0, -24);
+    mainThruster.rotation.x = Math.PI / 2;
+    shipGeometry.add(mainThruster);
+
+    // Propulseurs latéraux
+    const leftThruster = mainThruster.clone();
+    leftThruster.position.set(-4, 0, -22);
+    shipGeometry.add(leftThruster);
+
+    const rightThruster = mainThruster.clone();
+    rightThruster.position.set(4, 0, -22);
+    shipGeometry.add(rightThruster);
+
+    // Fenêtres de la cabine
+    const windowGeometry = new THREE.CylinderGeometry(1, 1, 2, 16);
+    const windowMaterial = new THREE.MeshPhongMaterial({
         color: 0x3498db,
         transparent: true,
         opacity: 0.7,
         shininess: 100
     });
-    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
-    cockpit.position.set(0, 2, -5);
-    cockpit.rotation.x = Math.PI;
-    shipGeometry.add(cockpit);
+
+    for (let i = 0; i < 3; i++) {
+        const window = new THREE.Mesh(windowGeometry, windowMaterial);
+        window.position.set(0, 15 - (i * 5), 3);
+        window.rotation.z = Math.PI / 2;
+        shipGeometry.add(window);
+    }
 
     ship = shipGeometry;
     ship.castShadow = true;
@@ -348,7 +434,7 @@ function createStarship() {
     
     // Attacher la caméra au vaisseau
     ship.add(camera);
-    camera.position.set(0, 10, -30);
+    camera.position.set(0, 15, -50);
     camera.lookAt(0, 0, 30);
 }
 
@@ -454,27 +540,34 @@ function updateSpeedometer(speed) {
     ctx.fillText(`${Math.round(speed)} km/h`, centerX, centerY + 20);
 }
 
-function startGame() {
-    const pseudo = document.getElementById('pseudoInput').value;
-    if (pseudo.trim() === '') {
-        alert('Veuillez entrer un pseudo');
-        return;
-    }
-
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('minimap').classList.remove('hidden');
-    document.getElementById('speedometer').classList.remove('hidden');
-    document.getElementById('hud').classList.remove('hidden');
-    document.getElementById('crosshair').classList.remove('hidden');
-    
-    initThree();
-    createStarship();
-    initControls();
-    initNetwork(pseudo);
-    
+// Démarrage automatique du jeu au chargement
+window.addEventListener('load', () => {
+    console.log('Démarrage automatique du jeu...');
     isGameStarted = true;
+    
+    console.log('Initialisation de Three.js...');
+    initThree();
+    console.log('Création du vaisseau...');
+    createStarship();
+    console.log('Initialisation des contrôles...');
+    initControls();
+    console.log('Initialisation du réseau...');
+    initNetwork('Player-' + Math.floor(Math.random() * 1000));
+    
+    console.log('Démarrage de l\'animation...');
     animate();
+    console.log('Démarrage de la musique...');
     startBackgroundMusic();
+});
+
+function resetPosition() {
+    if (ship) {
+        ship.position.set(0, 20, 0);
+        ship.rotation.set(0, 0, 0);
+        velocity.set(0, 0, 0);
+        acceleration.set(0, 0, 0);
+        rotationVelocity.set(0, 0, 0);
+    }
 }
 
 // Gestion du redimensionnement de la fenêtre
